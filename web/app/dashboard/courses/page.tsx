@@ -108,10 +108,6 @@ export default async function CoursesPage() {
 
     const studentId = Number(session.studentId);
 
-    /*
-     * Retrieve all required information from FastAPI.
-     */
-
     const [
         semester1Courses,
         semester2Courses,
@@ -124,17 +120,10 @@ export default async function CoursesPage() {
         getFinance(studentId),
     ]);
 
-    /*
-     * Determine how much the student has paid.
-     */
 
     const amountPaid = Number(
         financialData.amount_paid ?? 0
     );
-
-    /*
-     * Payment requirements.
-     */
 
     const semester1Unlocked =
         amountPaid >= 3500;
@@ -142,9 +131,6 @@ export default async function CoursesPage() {
     const semester2Unlocked =
         amountPaid >= 7000;
 
-    /*
-     * Create a quick lookup of enrolled courses.
-     */
 
     const enrolledCourseIds = new Set(
         enrollmentData.enrollments
@@ -159,9 +145,6 @@ export default async function CoursesPage() {
             )
     );
 
-    /*
-     * Add enrollment status to courses.
-     */
 
     const semester1CoursesWithStatus =
         semester1Courses.map((course) => ({
@@ -184,9 +167,7 @@ export default async function CoursesPage() {
     return (
         <div>
 
-            {/* --------------------------------------------------
-                Header
-            -------------------------------------------------- */}
+            {/* Header */}
 
             <div className="mb-8">
 
@@ -201,9 +182,7 @@ export default async function CoursesPage() {
             </div>
 
 
-            {/* --------------------------------------------------
-                Payment Summary
-            -------------------------------------------------- */}
+            {/*  Payment Summary */}
 
             <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-5">
 
@@ -217,10 +196,6 @@ export default async function CoursesPage() {
 
             </div>
 
-
-            {/* ==================================================
-                SEMESTER 1
-            ================================================== */}
 
             <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
@@ -396,11 +371,6 @@ export default async function CoursesPage() {
                 )}
 
             </section>
-
-
-            {/* ==================================================
-                SEMESTER 2
-            ================================================== */}
 
             <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
@@ -579,9 +549,7 @@ export default async function CoursesPage() {
             </section>
 
 
-            {/* --------------------------------------------------
-                Footer
-            -------------------------------------------------- */}
+            {/* Footer*/}
 
             <footer className="border-t border-gray-200 py-6 text-center">
 

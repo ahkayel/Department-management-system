@@ -129,7 +129,7 @@ export default function RegisterForm() {
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
                 <div className="mb-5 border-b border-indigo-100 pb-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 text-sm font-bold text-indigo-800">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-indigo-800">
                             02
                         </div>
 

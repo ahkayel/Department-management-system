@@ -127,11 +127,11 @@ export default function HomePage() {
 
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
                         <p className="text-md text-gray-900">
-                            Student Information - Manage student personal and academic information. <br />
-                            Course Enrollment - View available courses and register for courses. <br />
-                            Academic Records - View enrolled courses, grades, results and GPA. <br />
-                            Financial Information - View fees, payments and outstanding balances. <br />
-                            Authentication - Secure student registration, login and logout.
+                            Student Information<br />
+                            Course Enrollment<br />
+                            Academic Records<br />
+                            Financial Information<br />
+                            Authentication
                         </p>
                     </div>
 

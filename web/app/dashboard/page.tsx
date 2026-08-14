@@ -130,7 +130,6 @@ export default async function DashboardPage() {
                     <p className="mt-2 text-3xl font-bold text-blue-800">
                         {student.level}
                     </p>
-
                     <p className="mt-3 text-xs font-semibold text-blue-600 group-hover:text-blue-800">
                         View student information →
                     </p>

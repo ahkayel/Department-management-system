@@ -61,9 +61,7 @@ export default async function AcademicRecordsPage() {
 
     return (
         <div>
-            {/* --------------------------------------------------
-                Header
-            -------------------------------------------------- */}
+            {/* Header*/}
 
             <div className="mb-8">
                 <p className="text-sm font-semibold text-blue-700">
@@ -79,9 +77,7 @@ export default async function AcademicRecordsPage() {
                 </p>
             </div>
 
-            {/* --------------------------------------------------
-                Student Information
-            -------------------------------------------------- */}
+            {/* Student Information */}
 
             <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-200 bg-gray-50 px-6 py-5">
@@ -118,9 +114,7 @@ export default async function AcademicRecordsPage() {
                 </div>
             </section>
 
-            {/* --------------------------------------------------
-                Academic Results
-            -------------------------------------------------- */}
+            {/* Academic Results */}
 
             <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-200 bg-gray-50 px-6 py-5">
@@ -226,9 +220,7 @@ export default async function AcademicRecordsPage() {
                 )}
             </section>
 
-            {/* --------------------------------------------------
-                Footer
-            -------------------------------------------------- */}
+            {/* Footer */}
 
             <footer className="border-t border-gray-200 py-6 text-center">
                 <p className="text-lg text-gray-500">

@@ -19,10 +19,6 @@ export default function LoginPage() {
                         <h2 className="text-xl font-bold text-gray-950">
                             Student Login
                         </h2>
-
-                        <p className="mt-1 text-sm text-gray-600">
-                            Sign in to access your student dashboard.
-                        </p>
                     </div>
 
                     <LoginForm />

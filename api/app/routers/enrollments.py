@@ -17,10 +17,7 @@ def enroll_student(data: EnrollmentRequest):
         with get_connection() as conn:
             with conn.cursor() as cursor:
 
-                # --------------------------------------------------
                 # Check that the course is offered in this semester
-                # --------------------------------------------------
-
                 cursor.execute(
                     """
                     SELECT c.course_id
@@ -50,10 +47,7 @@ def enroll_student(data: EnrollmentRequest):
                         detail="This course is not offered in the selected semester."
                     )
 
-                # --------------------------------------------------
                 # Check if already enrolled
-                # --------------------------------------------------
-
                 cursor.execute(
                     """
                     SELECT enrollment_id
@@ -79,11 +73,6 @@ def enroll_student(data: EnrollmentRequest):
                         status_code=409,
                         detail="Student is already enrolled in this course."
                     )
-
-                # --------------------------------------------------
-                # Insert enrollment
-                # PostgreSQL trigger checks fee payment
-                # --------------------------------------------------
 
                 cursor.execute(
                     """
@@ -183,5 +172,3 @@ def get_student_enrollments(student_id: int):
         "student_id": student_id,
         "enrollments": enrollments
     }
-    
-    

@@ -65,12 +65,12 @@ export default async function FinancePage() {
                 </div>
 
                 {/* Amount Paid */}
-                <div className="rounded-xl border border-green-100 bg-green-50 p-6 shadow-sm">
-                    <p className="text-sm font-semibold text-green-700">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 shadow-sm">
+                    <p className="text-sm font-semibold text-blue-700">
                         Amount Paid
                     </p>
 
-                    <p className="mt-2 text-2xl font-bold text-green-950">
+                    <p className="mt-2 text-2xl font-bold text-blue-950">
                         GH₵{" "}
                         {Number(
                             financialData.amount_paid
@@ -123,7 +123,7 @@ export default async function FinancePage() {
                             Amount Paid
                         </span>
 
-                        <span className="font-bold text-green-700">
+                        <span className="font-bold text-gray-700">
                             GH₵{" "}
                             {Number(
                                 financialData.amount_paid
@@ -154,14 +154,6 @@ export default async function FinancePage() {
                 <h2 className="text-lg font-bold text-blue-950">
                     Payment Information
                 </h2>
-
-                <p className="mt-2 text-sm leading-6 text-blue-900">
-                    Your financial information is retrieved
-                    from the Department Management System API.
-                    The outstanding balance represents the
-                    difference between your total fees and
-                    payments made for the academic year.
-                </p>
 
             </section>
 
