@@ -11,7 +11,7 @@ class StudentAcademicInfo(BaseModel):
 
 
 class AcademicRecord(BaseModel):
-    result_id: int
+    result_id: int | None
     course_id: int
     course_code: str
     course_name: str

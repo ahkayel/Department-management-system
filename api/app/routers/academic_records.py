@@ -20,7 +20,6 @@ def get_academic_record(student_id: int):
         with get_connection() as conn:
             with conn.cursor() as cursor:
 
-                # Get student information
                 cursor.execute(
                     """
                     SELECT
@@ -44,30 +43,40 @@ def get_academic_record(student_id: int):
                         detail="Student not found."
                     )
 
-                # Get academic results
                 cursor.execute(
                     """
-                    SELECT
-                        cr.result_id,
-                        cr.course_id,
+                    SELECT DISTINCT ON (
+                        ce.course_id
+                    )
+                        ce.course_id,
                         c.course_code,
                         c.course_name,
                         c.credits,
-                        cr.semester,
-                        cr.academic_year,
+
+                        ce.semester,
+                        ce.academic_year,
+
+                        cr.result_id,
                         cr.grade,
                         cr.grade_point
-                    FROM academic.course_results cr
+
+                    FROM academic.course_enrollment ce
 
                     INNER JOIN academic.courses c
-                        ON cr.course_id = c.course_id
+                        ON ce.course_id = c.course_id
 
-                    WHERE cr.student_id = %s
+                    LEFT JOIN academic.course_results cr
+                        ON cr.student_id = ce.student_id
+                        AND cr.course_id = ce.course_id
+                        AND cr.semester = ce.semester
+                        AND cr.academic_year = ce.academic_year
+
+                    WHERE ce.student_id = %s
 
                     ORDER BY
-                        cr.academic_year,
-                        cr.semester,
-                        c.course_code
+                        ce.course_id,
+                        ce.academic_year DESC,
+                        ce.semester DESC
                     """,
                     (student_id,)
                 )

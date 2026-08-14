@@ -57,87 +57,102 @@ export default async function AcademicRecordsPage() {
     const data =
         (await response.json()) as AcademicRecordResponse;
 
-    const { student, results } = data;
+    const { results } = data;
+
+    const validResults = results.filter(
+        (record) => record.grade_point !== null
+    );
+
+    const totalCredits = validResults.reduce(
+        (total, record) => total + Number(record.credits),
+        0
+    );
+
+    const totalGradePoints = validResults.reduce(
+        (total, record) =>
+            total +
+            Number(record.credits) *
+                Number(record.grade_point),
+        0
+    );
+
+    const gpa =
+        totalCredits > 0
+            ? totalGradePoints / totalCredits
+            : 0;
 
     return (
-        <div>
-            {/* Header*/}
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 
             <div className="mb-8">
-                <p className="text-sm font-semibold text-blue-700">
-                    Academic Records
-                </p>
-
-                <h1 className="mt-1 text-2xl font-bold text-gray-950">
-                    Academic Record
+                <h1 className="text-2xl font-semibold text-blue-700">
+                    ACADEMIC RECORDS
                 </h1>
-
-                <p className="mt-1 text-sm text-gray-600">
-                    View your academic performance and course results.
-                </p>
             </div>
 
-            {/* Student Information */}
+            <div className="mb-8 grid gap-5 sm:grid-cols-3">
 
-            <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                <div className="border-b border-gray-200 bg-gray-50 px-6 py-5">
-                    <h2 className="text-lg font-bold text-gray-950">
-                        Student Information
-                    </h2>
+                <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+                    <p className="text-sm font-medium text-gray-500">
+                        Enrolled Courses
+                    </p>
+
+                    <p className="mt-2 text-3xl font-bold text-blue-800">
+                        {results.length}
+                    </p>
                 </div>
 
-                <div className="grid gap-x-10 gap-y-6 p-6 sm:grid-cols-2">
-                    <Info
-                        label="Full Name"
-                        value={`${student.first_name} ${student.last_name}`}
-                    />
+                <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+                    <p className="text-sm font-medium text-gray-500">
+                        Completed Credits
+                    </p>
 
-                    <Info
-                        label="Student ID"
-                        value={student.student_id}
-                    />
-
-                    <Info
-                        label="Student Number"
-                        value={student.student_number}
-                    />
-
-                    <Info
-                        label="Programme"
-                        value={student.programme ?? "N/A"}
-                    />
-
-                    <Info
-                        label="Level"
-                        value={student.level ?? "N/A"}
-                    />
+                    <p className="mt-2 text-3xl font-bold text-blue-800">
+                        {totalCredits}
+                    </p>
                 </div>
-            </section>
 
-            {/* Academic Results */}
+                <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+                    <p className="text-sm font-medium text-gray-500">
+                        GPA
+                    </p>
+
+                    <p className="mt-2 text-3xl font-bold text-blue-800">
+                        {gpa.toFixed(2)}
+                    </p>
+                </div>
+
+            </div>
 
             <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+
                 <div className="border-b border-gray-200 bg-gray-50 px-6 py-5">
                     <h2 className="text-lg font-bold text-gray-950">
-                        Academic Results
+                        Course Results
                     </h2>
                 </div>
 
                 {results.length === 0 ? (
-                    <div className="px-6 py-10 text-center">
+
+                    <div className="px-6 py-12 text-center">
                         <p className="font-semibold text-gray-800">
-                            No academic records found.
+                            No academic records available.
                         </p>
 
                         <p className="mt-1 text-sm text-gray-500">
-                            Your academic results have not been recorded yet.
+                            Your enrolled courses and results will appear here.
                         </p>
                     </div>
+
                 ) : (
+
                     <div className="overflow-x-auto">
+
                         <table className="w-full text-left">
+
                             <thead className="bg-blue-50">
                                 <tr>
+
                                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
                                         Course Code
                                     </th>
@@ -151,102 +166,89 @@ export default async function AcademicRecordsPage() {
                                     </th>
 
                                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
-                                        Semester
-                                    </th>
-
-                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
-                                        Academic Year
-                                    </th>
-
-                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
                                         Grade
                                     </th>
 
                                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
                                         Grade Point
                                     </th>
+
                                 </tr>
                             </thead>
 
                             <tbody>
-                                {results.map(
-                                    (record: AcademicRecord) => (
-                                        <tr
-                                            key={record.result_id}
-                                            className="border-b border-gray-100 transition hover:bg-blue-50/50"
-                                        >
-                                            <td className="px-6 py-4 font-bold text-blue-800">
+
+                                {results.map((record) => (
+
+                                    <tr
+                                        key={record.result_id}
+                                        className="border-b border-gray-100 transition hover:bg-blue-50/50"
+                                    >
+
+                                        <td className="px-6 py-5">
+                                            <span className="font-bold text-blue-800">
                                                 {record.course_code}
-                                            </td>
+                                            </span>
+                                        </td>
 
-                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                        <td className="px-6 py-5">
+                                            <p className="font-semibold text-gray-900">
                                                 {record.course_name}
-                                            </td>
+                                            </p>
+                                        </td>
 
-                                            <td className="px-6 py-4 text-gray-700">
-                                                {record.credits}
-                                            </td>
+                                        <td className="px-6 py-5 text-gray-700">
+                                            {record.credits}
+                                        </td>
 
-                                            <td className="px-6 py-4 text-gray-700">
-                                                Semester{" "}
-                                                {record.semester}
-                                            </td>
+                                        <td className="px-6 py-5">
 
-                                            <td className="px-6 py-4 text-gray-700">
-                                                {record.academic_year}
-                                            </td>
+                                            {record.grade ? (
 
-                                            <td className="px-6 py-4">
-                                                <span className="font-bold text-gray-900">
-                                                    {record.grade ??
-                                                        "N/A"}
+                                                <span className="inline-flex min-w-12 justify-center rounded-lg bg-blue-100 px-3 py-2 text-sm font-bold text-blue-800">
+                                                    {record.grade}
                                                 </span>
-                                            </td>
 
-                                            <td className="px-6 py-4 font-semibold text-blue-800">
-                                                {record.grade_point !==
-                                                null
-                                                    ? record.grade_point.toFixed(
-                                                          2
-                                                      )
-                                                    : "N/A"}
-                                            </td>
-                                        </tr>
-                                    )
-                                )}
+                                            ) : (
+
+                                                <span className="text-sm text-gray-400">
+                                                    Pending
+                                                </span>
+
+                                            )}
+
+                                        </td>
+
+                                        <td className="px-6 py-5 font-semibold text-gray-800">
+
+                                            {record.grade_point !== null
+                                                ? Number(
+                                                      record.grade_point
+                                                  ).toFixed(2)
+                                                : "—"}
+
+                                        </td>
+
+                                    </tr>
+
+                                ))}
+
                             </tbody>
-                        </table>
-                    </div>
-                )}
-            </section>
 
-            {/* Footer */}
+                        </table>
+
+                    </div>
+
+                )}
+
+            </section>
 
             <footer className="border-t border-gray-200 py-6 text-center">
                 <p className="text-lg text-gray-500">
                     ملكية الأسد
                 </p>
             </footer>
-        </div>
-    );
-}
 
-function Info({
-    label,
-    value,
-}: {
-    label: string;
-    value: string | number;
-}) {
-    return (
-        <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {label}
-            </p>
-
-            <p className="mt-1 font-semibold text-gray-900">
-                {value}
-            </p>
         </div>
     );
 }

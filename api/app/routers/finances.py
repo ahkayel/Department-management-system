@@ -79,3 +79,31 @@ def get_student_finance(student_id: int):
         "amount_paid": amount_paid,
         "outstanding_balance": outstanding_balance
     }
+
+
+@router.get("/students/{student_id}/payments")
+def get_student_payments(student_id: int):
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute(
+                """
+                SELECT
+                    sp.payment_id,
+                    sp.payment_date,
+                    sp.amount_paid,
+                    sp.fee_id
+                FROM finance.student_payments sp
+                WHERE sp.student_id = %s
+                ORDER BY sp.payment_date DESC
+                """,
+                (student_id,)
+            )
+
+            payments = cursor.fetchall()
+
+    return {
+        "student_id": student_id,
+        "payments": payments
+    }
