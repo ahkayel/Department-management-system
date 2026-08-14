@@ -51,7 +51,6 @@ export default function EnrollButton({
 
     return (
         <div>
-
             <button
                 type="button"
                 onClick={handleEnroll}
@@ -93,7 +92,6 @@ export default function EnrollButton({
                     {message}
                 </p>
             )}
-
         </div>
     );
 }

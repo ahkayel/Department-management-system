@@ -5,6 +5,7 @@ from app.routers.courses import router as courses_router
 from app.routers.finances import router as finances_router
 from app.routers.enrollments import router as enrollments_router
 from app.routers.academic_records import router as academic_records_router
+from app.routers.auth import router as auth_router
 
 app = FastAPI(
     title="Department Management System API",
@@ -25,3 +26,4 @@ app.include_router(courses_router)
 app.include_router(finances_router)
 app.include_router(enrollments_router)
 app.include_router(academic_records_router)
+app.include_router(auth_router)

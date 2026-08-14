@@ -74,3 +74,4 @@ def get_course(course_id: int):
         )
 
     return course
+

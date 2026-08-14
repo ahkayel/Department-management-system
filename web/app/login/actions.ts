@@ -1,67 +1,65 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import pool from "@/lib/db";
 import { createSession, destroySession } from "@/lib/auth";
 
-export async function loginStudent(formData: FormData) {
-    const studentId = Number(formData.get("studentId"));
-    const password = String(formData.get("password") || "");
+const API_URL =
+    process.env.API_URL || "http://127.0.0.1:8000";
 
-    if (!Number.isInteger(studentId) || studentId <= 0 || !password) {
+export async function loginStudent(formData: FormData) {
+    const studentId = formData.get("studentId");
+    const password = formData.get("password");
+
+    if (!studentId || !password) {
         return {
             success: false,
-            message: "Student ID and password are required.",
+            message:
+                "Student ID and password are required.",
         };
     }
 
-    let account;
+    let response: Response;
 
     try {
-        const result = await pool.query(
-            `
-            SELECT
-                s.student_id,
-                a.password_hash
-            FROM academic.students s
-            INNER JOIN auth.student_accounts a
-                ON s.student_id = a.student_id
-            WHERE s.student_id = $1
-            `,
-            [studentId]
+        response = await fetch(
+            `${API_URL}/auth/login`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    student_id: Number(studentId),
+                    password: String(password),
+                }),
+                cache: "no-store",
+            }
         );
-
-        if (result.rows.length === 0) {
-            return {
-                success: false,
-                message: "Invalid student ID or password.",
-            };
-        }
-
-        account = result.rows[0];
-
-        const passwordMatches = await bcrypt.compare(
-            password,
-            account.password_hash
-        );
-
-        if (!passwordMatches) {
-            return {
-                success: false,
-                message: "Invalid student ID or password.",
-            };
-        }
     } catch (error) {
-        console.error("Login error:", error);
+        console.error(
+            "Login API connection error:",
+            error
+        );
 
         return {
             success: false,
-            message: "Something went wrong. Please try again.",
+            message:
+                "Unable to connect to the authentication server.",
         };
     }
 
-    await createSession(account.student_id);
+    const data = await response.json();
+
+    if (!response.ok) {
+        return {
+            success: false,
+            message:
+                data.detail ||
+                "Invalid student ID or password.",
+        };
+    }
+
+    await createSession(data.student_id);
 
     redirect("/dashboard");
 }

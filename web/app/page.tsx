@@ -152,25 +152,3 @@ export default function HomePage() {
         </main>
     );
 }
-
-function Feature({
-    title,
-    description,
-}: {
-    title: string;
-    description: string;
-}) {
-    return (
-        <div className="rounded-xl border border-blue-900 bg-blue-50 p-5">
-
-            <h3 className="text-base font-bold text-blue-300">
-                {title}
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-blue-700">
-                {description}
-            </p>
-
-        </div>
-    );
-}

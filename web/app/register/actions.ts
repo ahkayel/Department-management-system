@@ -1,22 +1,34 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import pool from "@/lib/db";
 import { createSession } from "@/lib/auth";
+
+const API_URL =
+    process.env.API_URL || "http://127.0.0.1:8000";
 
 export async function registerStudent(formData: FormData) {
     const studentId = Number(formData.get("studentId"));
-    const email = String(formData.get("email") || "")
+
+    const email = String(
+        formData.get("email") || ""
+    )
         .trim()
         .toLowerCase();
 
-    const password = String(formData.get("password") || "");
+    const password = String(
+        formData.get("password") || ""
+    );
+
     const confirmPassword = String(
         formData.get("confirmPassword") || ""
     );
 
-    if (!studentId || !email || !password || !confirmPassword) {
+    if (
+        !studentId ||
+        !email ||
+        !password ||
+        !confirmPassword
+    ) {
         return {
             success: false,
             message: "All fields are required.",
@@ -33,74 +45,53 @@ export async function registerStudent(formData: FormData) {
     if (password.length < 8) {
         return {
             success: false,
-            message: "Password must be at least 8 characters.",
+            message:
+                "Password must be at least 8 characters.",
         };
     }
 
     try {
-        const studentResult = await pool.query(
-            `
-            SELECT
-                student_id,
-                email
-            FROM academic.students
-            WHERE student_id = $1
-            `,
-            [studentId]
+        const response = await fetch(
+            `${API_URL}/auth/register`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    email,
+                    password,
+                }),
+                cache: "no-store",
+            }
         );
 
-        if (studentResult.rows.length === 0) {
+        const data = await response.json();
+
+        if (!response.ok) {
             return {
                 success: false,
-                message: "Student record not found.",
+                message:
+                    data.detail ||
+                    "Registration failed.",
             };
         }
 
-        const student = studentResult.rows[0];
-
-        if (student.email.toLowerCase() !== email) {
-            return {
-                success: false,
-                message: "The email does not match the student record.",
-            };
-        }
-
-        const accountResult = await pool.query(
-            `
-            SELECT student_id
-            FROM auth.student_accounts
-            WHERE student_id = $1
-            `,
-            [studentId]
+        await createSession(
+            Number(data.student_id)
         );
-
-        if (accountResult.rows.length > 0) {
-            return {
-                success: false,
-                message: "An account already exists for this student.",
-            };
-        }
-
-        const passwordHash = await bcrypt.hash(password, 12);
-
-        await pool.query(
-            `
-            INSERT INTO auth.student_accounts
-                (student_id, password_hash)
-            VALUES
-                ($1, $2)
-            `,
-            [studentId, passwordHash]
-        );
-
-        await createSession(studentId);
 
     } catch (error) {
-        console.error("Registration error:", error);
+        console.error(
+            "Registration API error:",
+            error
+        );
 
         return {
             success: false,
-            message: "Something went wrong. Please try again.",
+            message:
+                "Unable to connect to the server. Please try again.",
         };
     }
 

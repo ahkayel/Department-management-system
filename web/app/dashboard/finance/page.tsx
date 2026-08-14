@@ -1,6 +1,15 @@
 import { redirect } from "next/navigation";
-import pool from "@/lib/db";
 import { getSession } from "@/lib/auth";
+
+type FinancialData = {
+    student_id: number;
+    total_fees: number;
+    amount_paid: number;
+    outstanding_balance: number;
+};
+
+const API_URL =
+    process.env.API_URL || "http://127.0.0.1:8000";
 
 export default async function FinancePage() {
     const session = await getSession();
@@ -9,240 +18,161 @@ export default async function FinancePage() {
         redirect("/login");
     }
 
-    // Financial summary
-    const financeResult = await pool.query(
-        `
-        SELECT student_data
-        FROM json_array_elements(
-            finance.get_outstanding_fees_json()
-        ) AS student_data
-        WHERE (student_data->>'student_id')::integer = $1
-        `,
-        [session.studentId]
+    const response = await fetch(
+        `${API_URL}/finance/students/${session.studentId}`,
+        {
+            cache: "no-store",
+        }
     );
+
+    if (!response.ok) {
+        throw new Error(
+            "Unable to retrieve financial information."
+        );
+    }
 
     const financialData =
-        financeResult.rows.length > 0
-            ? financeResult.rows[0].student_data
-            : null;
-
-    // Payment history
-    const paymentResult = await pool.query(
-        `
-        SELECT
-            sp.payment_id,
-            sp.payment_date,
-            sp.amount_paid,
-            sp.fee_id
-        FROM finance.student_payments sp
-        WHERE sp.student_id = $1
-        ORDER BY sp.payment_date DESC
-        `,
-        [session.studentId]
-    );
-
-    const payments = paymentResult.rows;
-
-    const totalFees = financialData
-        ? Number(financialData.total_fees)
-        : 0;
-
-    const amountPaid = financialData
-        ? Number(financialData.amount_paid)
-        : 0;
-
-    const outstandingBalance = financialData
-        ? Number(financialData.outstanding_balance)
-        : 0;
-
-    const paymentPercentage =
-        totalFees > 0
-            ? Math.min((amountPaid / totalFees) * 100, 100)
-            : 0;
+        (await response.json()) as FinancialData;
 
     return (
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div>
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-2xl font-semibold text-blue-700">
                     FINANCIAL INFORMATION
                 </h1>
+
+                <p className="mt-1 text-sm text-gray-600">
+                    Academic Year: 2025/2026
+                </p>
             </div>
 
-            {!financialData ? (
-                <section className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-                    <p className="font-semibold text-gray-800">
-                        No financial information available.
+            {/* Summary */}
+            <div className="mb-8 grid gap-5 sm:grid-cols-3">
+
+                {/* Total Fees */}
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 shadow-sm">
+                    <p className="text-sm font-semibold text-blue-700">
+                        Total Fees
                     </p>
 
-                    <p className="mt-1 text-sm text-gray-500">
-                        Financial information for your student account could
-                        not be found.
+                    <p className="mt-2 text-2xl font-bold text-blue-950">
+                        GH₵{" "}
+                        {Number(
+                            financialData.total_fees
+                        ).toFixed(2)}
                     </p>
-                </section>
-            ) : (
-                <>
-                    {/* Financial Summary */}
-                    <div className="mb-8 grid gap-5 sm:grid-cols-3">
-                        <FinancialCard
-                            title="Total Fees"
-                            amount={totalFees}
-                            className="border-blue-100 bg-blue-50"
-                            valueClassName="text-blue-800"
-                        />
+                </div>
 
-                        <FinancialCard
-                            title="Amount Paid"
-                            amount={amountPaid}
-                            className="border-blue-100 bg-blue-50"
-                            valueClassName="text-blue-800"
-                        />
+                {/* Amount Paid */}
+                <div className="rounded-xl border border-green-100 bg-green-50 p-6 shadow-sm">
+                    <p className="text-sm font-semibold text-green-700">
+                        Amount Paid
+                    </p>
 
-                        <FinancialCard
-                            title="Outstanding Balance"
-                            amount={outstandingBalance}
-                            className="border-blue-200 bg-blue-100"
-                            valueClassName="text-blue-900"
-                        />
+                    <p className="mt-2 text-2xl font-bold text-green-950">
+                        GH₵{" "}
+                        {Number(
+                            financialData.amount_paid
+                        ).toFixed(2)}
+                    </p>
+                </div>
+
+                {/* Outstanding */}
+                <div className="rounded-xl border border-red-100 bg-red-50 p-6 shadow-sm">
+                    <p className="text-sm font-semibold text-red-700">
+                        Outstanding Balance
+                    </p>
+
+                    <p className="mt-2 text-2xl font-bold text-red-950">
+                        GH₵{" "}
+                        {Number(
+                            financialData.outstanding_balance
+                        ).toFixed(2)}
+                    </p>
+                </div>
+
+            </div>
+
+            {/* Financial Details */}
+            <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+
+                <div className="border-b border-gray-200 bg-gray-50 px-6 py-5">
+                    <h2 className="text-lg font-bold text-gray-950">
+                        Payment Summary
+                    </h2>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+
+                    <div className="flex items-center justify-between px-6 py-5">
+                        <span className="font-medium text-gray-700">
+                            Total Fees
+                        </span>
+
+                        <span className="font-bold text-gray-900">
+                            GH₵{" "}
+                            {Number(
+                                financialData.total_fees
+                            ).toFixed(2)}
+                        </span>
                     </div>
 
-                    {/* Payment Status */}
-                    <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                        <div className="border-b border-gray-200 bg-gray-50 px-6 py-5">
-                            <h3 className="text-lg font-bold text-gray-950">
-                                Payment Status
-                            </h3>
-                        </div>
+                    <div className="flex items-center justify-between px-6 py-5">
+                        <span className="font-medium text-gray-700">
+                            Amount Paid
+                        </span>
 
-                        <div className="p-6">
-                            <div className="mb-3 flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-600">
-                                    Payment Progress
-                                </span>
+                        <span className="font-bold text-green-700">
+                            GH₵{" "}
+                            {Number(
+                                financialData.amount_paid
+                            ).toFixed(2)}
+                        </span>
+                    </div>
 
-                                <span className="text-sm font-bold text-blue-800">
-                                    {paymentPercentage.toFixed(1)}%
-                                </span>
-                            </div>
+                    <div className="flex items-center justify-between bg-gray-50 px-6 py-5">
+                        <span className="font-semibold text-gray-900">
+                            Outstanding Balance
+                        </span>
 
-                            <div className="h-3 overflow-hidden rounded-full bg-gray-200">
-                                <div
-                                    className="h-full rounded-full bg-blue-700 transition-all"
-                                    style={{
-                                        width: `${paymentPercentage}%`,
-                                    }}
-                                />
-                            </div>
+                        <span className="font-bold text-red-700">
+                            GH₵{" "}
+                            {Number(
+                                financialData.outstanding_balance
+                            ).toFixed(2)}
+                        </span>
+                    </div>
 
-                            <div className="mt-4 flex justify-between text-xs text-gray-500">
-                                <span>
-                                    Paid: GH₵ {amountPaid.toFixed(2)}
-                                </span>
+                </div>
 
-                                <span>
-                                    Remaining: GH₵{" "}
-                                    {outstandingBalance.toFixed(2)}
-                                </span>
-                            </div>
-                        </div>
-                    </section>
+            </section>
 
-                    {/* Payment History */}
-                    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                        <div className="border-b border-gray-200 bg-gray-50 px-6 py-5">
-                            <h3 className="text-lg font-bold text-gray-950">
-                                Payment History
-                            </h3>
-                        </div>
+            {/* Information */}
+            <section className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-6">
 
-                        {payments.length === 0 ? (
-                            <div className="px-6 py-12 text-center">
-                                <p className="font-semibold text-gray-800">
-                                    No payments found.
-                                </p>
+                <h2 className="text-lg font-bold text-blue-950">
+                    Payment Information
+                </h2>
 
-                                <p className="mt-1 text-sm text-gray-500">
-                                    No payment records are currently
-                                    associated with your account.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-blue-50">
-                                        <tr>
-                                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
-                                                Date
-                                            </th>
+                <p className="mt-2 text-sm leading-6 text-blue-900">
+                    Your financial information is retrieved
+                    from the Department Management System API.
+                    The outstanding balance represents the
+                    difference between your total fees and
+                    payments made for the academic year.
+                </p>
 
-                                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
-                                                Amount Paid
-                                            </th>
-                                        </tr>
-                                    </thead>
+            </section>
 
-                                    <tbody>
-                                        {payments.map((payment) => (
-                                            <tr
-                                                key={payment.payment_id}
-                                                className="border-b border-gray-100 transition hover:bg-blue-50/50"
-                                            >
-                                                <td className="px-6 py-5 text-gray-700">
-                                                    {new Date(
-                                                        payment.payment_date
-                                                    ).toLocaleDateString(
-                                                        "en-GB"
-                                                    )}
-                                                </td>
-
-                                                <td className="px-6 py-5 font-bold text-blue-800">
-                                                    GH₵{" "}
-                                                    {Number(
-                                                        payment.amount_paid
-                                                    ).toFixed(2)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </section>
-                </>
-            )}
+            {/* Footer */}
             <footer className="border-t border-gray-200 py-6 text-center">
-                        <p className="text-lg text-gray-500">
-                            ملكية الأسد
-                        </p>
+
+                <p className="text-lg text-gray-500">
+                    ملكية الأسد
+                </p>
+
             </footer>
-        </div>
-    );
-}
-
-function FinancialCard({
-    title,
-    amount,
-    className,
-    valueClassName,
-}: {
-    title: string;
-    amount: number;
-    className: string;
-    valueClassName: string;
-}) {
-    return (
-        <div
-            className={`rounded-xl border p-5 shadow-sm ${className}`}
-        >
-            <p className="text-sm font-semibold text-gray-600">
-                {title}
-            </p>
-
-            <p
-                className={`mt-2 text-2xl font-bold ${valueClassName}`}
-            >
-                GH₵ {amount.toFixed(2)}
-            </p>
         </div>
     );
 }

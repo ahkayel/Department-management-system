@@ -1,7 +1,46 @@
-import pool from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+
+type Student = {
+    student_id: number;
+    student_number: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    programme: string;
+    level: number;
+};
+
+type EnrolledCourse = {
+    enrollment_id: number;
+    student_id: number;
+    student_number: number;
+    first_name: string;
+    last_name: string;
+    course_id: number;
+    course_code: string;
+    course_name: string;
+    credits: number;
+    semester: number;
+    academic_year: string;
+};
+
+type EnrollmentResponse = {
+    student_id: number;
+    enrollments: EnrolledCourse[];
+};
+
+type StudentFinance = {
+    student_id: number;
+    total_fees: number | string;
+    amount_paid: number | string;
+    outstanding_balance: number | string;
+};
+
+const API_URL =
+    process.env.API_URL || "http://localhost:8000";
 
 export default async function DashboardPage() {
     const session = await getSession();
@@ -11,67 +50,55 @@ export default async function DashboardPage() {
     }
 
     // Student information
-    const studentResult = await pool.query(
-        `
-        SELECT
-            student_id,
-            student_number,
-            first_name,
-            last_name,
-            email,
-            phone,
-            programme,
-            level
-        FROM academic.students
-        WHERE student_id = $1
-        `,
-        [session.studentId]
+    const studentResponse = await fetch(
+        `${API_URL}/students/${session.studentId}`,
+        {
+            cache: "no-store",
+        }
     );
 
-    if (studentResult.rows.length === 0) {
+    if (!studentResponse.ok) {
         redirect("/login");
     }
 
-    const student = studentResult.rows[0];
+    const student =
+        (await studentResponse.json()) as Student;
 
-    // Courses
-    const courseResult = await pool.query(
-    `
-    SELECT
-        c.course_code,
-        c.course_name,
-        c.credits,
-        ce.semester,
-        ce.academic_year
-    FROM academic.course_enrollment ce
-    INNER JOIN academic.courses c
-        ON ce.course_id = c.course_id
-    WHERE ce.student_id = $1
-        AND ce.semester = 1
-        AND ce.academic_year = '2025/2026'
-    ORDER BY c.course_code ASC
-    `,
-    [session.studentId]
-);
-
-    const courses = courseResult.rows;
-
-    // Financial information
-    const financeResult = await pool.query(
-        `
-        SELECT student_data
-        FROM json_array_elements(
-            finance.get_outstanding_fees_json()
-        ) AS student_data
-        WHERE (student_data->>'student_id')::integer = $1
-        `,
-        [session.studentId]
+    // Enrolled courses
+    const enrollmentResponse = await fetch(
+        `${API_URL}/enrollments/${session.studentId}`,
+        {
+            cache: "no-store",
+        }
     );
 
+    if (!enrollmentResponse.ok) {
+        throw new Error(
+            "Unable to retrieve enrolled courses."
+        );
+    }
+
+    const enrollmentData =
+        (await enrollmentResponse.json()) as EnrollmentResponse;
+
+    const courses = enrollmentData.enrollments;
+
+    // Financial information
+    const financeResponse = await fetch(
+        `${API_URL}/finance/students/${session.studentId}`,
+        {
+            cache: "no-store",
+        }
+    );
+
+    if (!financeResponse.ok) {
+        throw new Error(
+            "Unable to retrieve financial information."
+        );
+    }
+
     const financialData =
-        financeResult.rows.length > 0
-            ? financeResult.rows[0].student_data
-            : null;
+        (await financeResponse.json()) as StudentFinance;
 
     const outstandingBalance = financialData
         ? Number(financialData.outstanding_balance)

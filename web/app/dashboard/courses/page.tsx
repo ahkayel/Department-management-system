@@ -1,7 +1,103 @@
 import { redirect } from "next/navigation";
-import pool from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import EnrollButton from "./EnrollButton";
+
+type Course = {
+    course_id: number;
+    course_code: string;
+    course_name: string;
+    credits: number;
+    semester: number;
+};
+
+type Enrollment = {
+    enrollment_id: number;
+    student_id: number;
+    student_number: number;
+    first_name: string;
+    last_name: string;
+    course_id: number;
+    course_code: string;
+    course_name: string;
+    credits: number;
+    semester: number;
+    academic_year: string;
+};
+
+type EnrollmentResponse = {
+    student_id: number;
+    enrollments: Enrollment[];
+};
+
+type Finance = {
+    student_id: number;
+    total_fees: number;
+    amount_paid: number;
+    outstanding_balance: number;
+};
+
+const API_URL =
+    process.env.API_URL || "http://127.0.0.1:8000";
+
+const academicYear = "2025/2026";
+
+async function getCourses(
+    semester: number
+): Promise<Course[]> {
+    const response = await fetch(
+        `${API_URL}/courses/?semester=${semester}`,
+        {
+            cache: "no-store",
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(
+            `Unable to retrieve Semester ${semester} courses.`
+        );
+    }
+
+    return response.json();
+}
+
+async function getEnrollments(
+    studentId: number
+): Promise<EnrollmentResponse> {
+    const response = await fetch(
+        `${API_URL}/enrollments/${studentId}`,
+        {
+            cache: "no-store",
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(
+            "Unable to retrieve student enrollments."
+        );
+    }
+
+    return response.json();
+}
+
+async function getFinance(
+    studentId: number
+): Promise<Finance> {
+    const response = await fetch(
+        `${API_URL}/finance/students/${studentId}`,
+        {
+            cache: "no-store",
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(
+            "Unable to retrieve financial information."
+        );
+    }
+
+    return response.json();
+}
+
 
 export default async function CoursesPage() {
     const session = await getSession();
@@ -10,105 +106,80 @@ export default async function CoursesPage() {
         redirect("/login");
     }
 
-    const academicYear = "2025/2026";
+    const studentId = Number(session.studentId);
 
-    const paymentResult = await pool.query(
-        `
-        SELECT
-            COALESCE(SUM(sp.amount_paid), 0) AS amount_paid
-        FROM finance.student_payments sp
-        JOIN finance.fees f
-            ON sp.fee_id = f.fee_id
-        WHERE sp.student_id = $1
-          AND f.academic_year = $2
-        `,
-        [
-            session.studentId,
-            academicYear,
-        ]
-    );
+    /*
+     * Retrieve all required information from FastAPI.
+     */
+
+    const [
+        semester1Courses,
+        semester2Courses,
+        enrollmentData,
+        financialData,
+    ] = await Promise.all([
+        getCourses(1),
+        getCourses(2),
+        getEnrollments(studentId),
+        getFinance(studentId),
+    ]);
+
+    /*
+     * Determine how much the student has paid.
+     */
 
     const amountPaid = Number(
-        paymentResult.rows[0]?.amount_paid ?? 0
+        financialData.amount_paid ?? 0
     );
 
+    /*
+     * Payment requirements.
+     */
 
-    const semester1Unlocked = amountPaid >= 3500;
-    const semester2Unlocked = amountPaid >= 7000;
+    const semester1Unlocked =
+        amountPaid >= 3500;
 
-    const semester1Result = await pool.query(
-        `
-        SELECT
-            c.course_id,
-            c.course_code,
-            c.course_name,
-            c.credits,
+    const semester2Unlocked =
+        amountPaid >= 7000;
 
-            CASE
-                WHEN ce.enrollment_id IS NOT NULL
-                THEN true
-                ELSE false
-            END AS enrolled
+    /*
+     * Create a quick lookup of enrolled courses.
+     */
 
-        FROM academic.courses c
-
-        INNER JOIN faculty.lecturer_course_assignment lca
-            ON lca.course_id = c.course_id
-            AND lca.academic_year = $1
-            AND lca.semester = 1
-
-        LEFT JOIN academic.course_enrollment ce
-            ON ce.course_id = c.course_id
-            AND ce.student_id = $2
-            AND ce.semester = 1
-            AND ce.academic_year = $1
-
-        ORDER BY c.course_code ASC
-        `,
-        [
-            academicYear,
-            session.studentId,
-        ]
+    const enrolledCourseIds = new Set(
+        enrollmentData.enrollments
+            .filter(
+                (enrollment) =>
+                    enrollment.academic_year ===
+                        academicYear
+            )
+            .map(
+                (enrollment) =>
+                    `${enrollment.course_id}-${enrollment.semester}`
+            )
     );
 
+    /*
+     * Add enrollment status to courses.
+     */
 
-    const semester2Result = await pool.query(
-        `
-        SELECT
-            c.course_id,
-            c.course_code,
-            c.course_name,
-            c.credits,
+    const semester1CoursesWithStatus =
+        semester1Courses.map((course) => ({
+            ...course,
 
-            CASE
-                WHEN ce.enrollment_id IS NOT NULL
-                THEN true
-                ELSE false
-            END AS enrolled
+            enrolled: enrolledCourseIds.has(
+                `${course.course_id}-${course.semester}`
+            ),
+        }));
 
-        FROM academic.courses c
+    const semester2CoursesWithStatus =
+        semester2Courses.map((course) => ({
+            ...course,
 
-        INNER JOIN faculty.lecturer_course_assignment lca
-            ON lca.course_id = c.course_id
-            AND lca.academic_year = $1
-            AND lca.semester = 2
-
-        LEFT JOIN academic.course_enrollment ce
-            ON ce.course_id = c.course_id
-            AND ce.student_id = $2
-            AND ce.semester = 2
-            AND ce.academic_year = $1
-
-        ORDER BY c.course_code ASC
-        `,
-        [
-            academicYear,
-            session.studentId,
-        ]
-    );
-
-    const semester1Courses = semester1Result.rows;
-    const semester2Courses = semester2Result.rows;
+            enrolled: enrolledCourseIds.has(
+                `${course.course_id}-${course.semester}`
+            ),
+        }));
 
     return (
         <div>
@@ -118,6 +189,7 @@ export default async function CoursesPage() {
             -------------------------------------------------- */}
 
             <div className="mb-8">
+
                 <h1 className="text-2xl font-semibold text-blue-700">
                     COURSE ENROLLMENT
                 </h1>
@@ -125,6 +197,7 @@ export default async function CoursesPage() {
                 <p className="mt-1 text-sm text-gray-600">
                     Academic Year: {academicYear}
                 </p>
+
             </div>
 
 
@@ -141,6 +214,7 @@ export default async function CoursesPage() {
                 <p className="mt-1 text-2xl font-bold text-blue-950">
                     GH₵ {amountPaid.toFixed(2)}
                 </p>
+
             </div>
 
 
@@ -153,43 +227,60 @@ export default async function CoursesPage() {
                 <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-5">
 
                     <div>
+
                         <h2 className="text-lg font-bold text-gray-950">
                             Semester 1
                         </h2>
+
                     </div>
 
                     {semester1Unlocked ? (
+
                         <span className="rounded-lg bg-green-100 px-3 py-1.5 text-sm font-semibold text-green-700">
                             Available
                         </span>
+
                     ) : (
+
                         <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700">
                             Locked
                         </span>
+
                     )}
 
                 </div>
 
-                {!semester2Unlocked && (
+
+                {!semester1Unlocked && (
 
                     <div className="border-b border-gray-200 bg-gray-100 px-6 py-4">
 
-                        <p className="mt-1 text-sm text-gray-700">
+                        <p className="text-sm text-gray-700">
+
                             GH₵{" "}
-                            {Math.max(3500 - amountPaid, 0).toFixed(2)}{" "}
-                            more is needed to enroll.
+
+                            {Math.max(
+                                3500 - amountPaid,
+                                0
+                            ).toFixed(2)}
+
+                            {" "}more is needed to enroll.
+
                         </p>
 
                     </div>
 
                 )}
 
-                {semester1Courses.length === 0 ? (
+
+                {semester1CoursesWithStatus.length === 0 ? (
 
                     <div className="px-6 py-10 text-center">
+
                         <p className="font-semibold text-gray-800">
                             No Semester 1 courses available.
                         </p>
+
                     </div>
 
                 ) : (
@@ -199,6 +290,7 @@ export default async function CoursesPage() {
                         <table className="w-full text-left">
 
                             <thead className="bg-blue-50">
+
                                 <tr>
 
                                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
@@ -218,57 +310,82 @@ export default async function CoursesPage() {
                                     </th>
 
                                 </tr>
+
                             </thead>
+
 
                             <tbody>
 
-                                {semester1Courses.map((course) => (
+                                {semester1CoursesWithStatus.map(
+                                    (course) => (
 
-                                    <tr
-                                        key={course.course_id}
-                                        className="border-b border-gray-100 transition hover:bg-blue-50/50"
-                                    >
+                                        <tr
+                                            key={
+                                                course.course_id
+                                            }
+                                            className="border-b border-gray-100 transition hover:bg-blue-50/50"
+                                        >
 
-                                        <td className="px-6 py-5">
-                                            <span className="font-bold text-blue-800">
-                                                {course.course_code}
-                                            </span>
-                                        </td>
+                                            <td className="px-6 py-5">
 
-                                        <td className="px-6 py-5">
-                                            <p className="font-semibold text-gray-900">
-                                                {course.course_name}
-                                            </p>
-                                        </td>
-
-                                        <td className="px-6 py-5 text-gray-700">
-                                            {course.credits}
-                                        </td>
-
-                                        <td className="px-6 py-5">
-
-                                            {course.enrolled ? (
-
-                                                <span className="inline-flex rounded-lg bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-                                                    Enrolled
+                                                <span className="font-bold text-blue-800">
+                                                    {
+                                                        course.course_code
+                                                    }
                                                 </span>
 
-                                            ) : (
+                                            </td>
 
-                                                <EnrollButton
-                                                    courseId={course.course_id}
-                                                    semester={1}
-                                                    academicYear={academicYear}
-                                                    disabled={!semester1Unlocked}
-                                                />
 
-                                            )}
+                                            <td className="px-6 py-5">
 
-                                        </td>
+                                                <p className="font-semibold text-gray-900">
+                                                    {
+                                                        course.course_name
+                                                    }
+                                                </p>
 
-                                    </tr>
+                                            </td>
 
-                                ))}
+
+                                            <td className="px-6 py-5 text-gray-700">
+                                                {
+                                                    course.credits
+                                                }
+                                            </td>
+
+
+                                            <td className="px-6 py-5">
+
+                                                {course.enrolled ? (
+
+                                                    <span className="inline-flex rounded-lg bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
+                                                        Enrolled
+                                                    </span>
+
+                                                ) : (
+
+                                                    <EnrollButton
+                                                        courseId={
+                                                            course.course_id
+                                                        }
+                                                        semester={1}
+                                                        academicYear={
+                                                            academicYear
+                                                        }
+                                                        disabled={
+                                                            !semester1Unlocked
+                                                        }
+                                                    />
+
+                                                )}
+
+                                            </td>
+
+                                        </tr>
+
+                                    )
+                                )}
 
                             </tbody>
 
@@ -290,10 +407,13 @@ export default async function CoursesPage() {
                 <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-5">
 
                     <div>
+
                         <h2 className="text-lg font-bold text-gray-950">
                             Semester 2
                         </h2>
+
                     </div>
+
 
                     {semester2Unlocked ? (
 
@@ -316,10 +436,17 @@ export default async function CoursesPage() {
 
                     <div className="border-b border-gray-200 bg-gray-100 px-6 py-4">
 
-                        <p className="mt-1 text-sm text-gray-700">
+                        <p className="text-sm text-gray-700">
+
                             GH₵{" "}
-                            {Math.max(7000 - amountPaid, 0).toFixed(2)}{" "}
-                            more is needed to enroll.
+
+                            {Math.max(
+                                7000 - amountPaid,
+                                0
+                            ).toFixed(2)}
+
+                            {" "}more is needed to enroll.
+
                         </p>
 
                     </div>
@@ -327,12 +454,14 @@ export default async function CoursesPage() {
                 )}
 
 
-                {semester2Courses.length === 0 ? (
+                {semester2CoursesWithStatus.length === 0 ? (
 
                     <div className="px-6 py-10 text-center">
+
                         <p className="font-semibold text-gray-800">
                             No Semester 2 courses available.
                         </p>
+
                     </div>
 
                 ) : (
@@ -342,6 +471,7 @@ export default async function CoursesPage() {
                         <table className="w-full text-left">
 
                             <thead className="bg-blue-50">
+
                                 <tr>
 
                                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-blue-900">
@@ -361,57 +491,82 @@ export default async function CoursesPage() {
                                     </th>
 
                                 </tr>
+
                             </thead>
+
 
                             <tbody>
 
-                                {semester2Courses.map((course) => (
+                                {semester2CoursesWithStatus.map(
+                                    (course) => (
 
-                                    <tr
-                                        key={course.course_id}
-                                        className="border-b border-gray-100 transition hover:bg-blue-50/50"
-                                    >
+                                        <tr
+                                            key={
+                                                course.course_id
+                                            }
+                                            className="border-b border-gray-100 transition hover:bg-blue-50/50"
+                                        >
 
-                                        <td className="px-6 py-5">
-                                            <span className="font-bold text-blue-800">
-                                                {course.course_code}
-                                            </span>
-                                        </td>
+                                            <td className="px-6 py-5">
 
-                                        <td className="px-6 py-5">
-                                            <p className="font-semibold text-gray-900">
-                                                {course.course_name}
-                                            </p>
-                                        </td>
-
-                                        <td className="px-6 py-5 text-gray-700">
-                                            {course.credits}
-                                        </td>
-
-                                        <td className="px-6 py-5">
-
-                                            {course.enrolled ? (
-
-                                                <span className="inline-flex rounded-lg bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-                                                    Enrolled
+                                                <span className="font-bold text-blue-800">
+                                                    {
+                                                        course.course_code
+                                                    }
                                                 </span>
 
-                                            ) : (
+                                            </td>
 
-                                                <EnrollButton
-                                                    courseId={course.course_id}
-                                                    semester={2}
-                                                    academicYear={academicYear}
-                                                    disabled={!semester2Unlocked}
-                                                />
 
-                                            )}
+                                            <td className="px-6 py-5">
 
-                                        </td>
+                                                <p className="font-semibold text-gray-900">
+                                                    {
+                                                        course.course_name
+                                                    }
+                                                </p>
 
-                                    </tr>
+                                            </td>
 
-                                ))}
+
+                                            <td className="px-6 py-5 text-gray-700">
+                                                {
+                                                    course.credits
+                                                }
+                                            </td>
+
+
+                                            <td className="px-6 py-5">
+
+                                                {course.enrolled ? (
+
+                                                    <span className="inline-flex rounded-lg bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
+                                                        Enrolled
+                                                    </span>
+
+                                                ) : (
+
+                                                    <EnrollButton
+                                                        courseId={
+                                                            course.course_id
+                                                        }
+                                                        semester={2}
+                                                        academicYear={
+                                                            academicYear
+                                                        }
+                                                        disabled={
+                                                            !semester2Unlocked
+                                                        }
+                                                    />
+
+                                                )}
+
+                                            </td>
+
+                                        </tr>
+
+                                    )
+                                )}
 
                             </tbody>
 
